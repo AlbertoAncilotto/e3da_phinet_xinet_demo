@@ -1,0 +1,6 @@
+numpy
+matplotlib
+opencv-python
+onnxruntime
+tqdm
+insightface==0.2.1
