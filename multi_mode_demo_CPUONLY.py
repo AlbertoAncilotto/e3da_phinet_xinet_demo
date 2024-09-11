@@ -24,6 +24,15 @@ for mode, (bg_path, (center_x, center_y, scale)) in backgrounds.items():
     resized_bg = cv2.resize(background_img, (1800, 900))
     background_images.append((resized_bg, (center_x, center_y, scale)))
 
+if platform.machine() in ['AMD64', 'x86_64', 'i386', 'x86', 'i686']:
+    IS_EMBEDDED = False
+    cv2.namedWindow("Phinet Multi-Mode")
+else:
+    IS_EMBEDDED = True
+    print("Running on embedded device")
+    cv2.namedWindow("Phinet Multi-Mode", cv2.WINDOW_NORMAL)
+    cv2.setWindowProperty("Phinet Multi-Mode", cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
+
 cv2.imshow("Phinet Multi-Mode", background_images[0][0])
 cv2.waitKey(1)
 
@@ -63,14 +72,6 @@ ort_session = inf_sessions[curr_model]['session']
 mode_start_time = time.time()
 
 cap = camera.Camera(480, 320)
-if platform.machine() in ['AMD64', 'x86_64', 'i386', 'x86', 'i686']:
-    IS_EMBEDDED = False
-    cv2.namedWindow("Phinet Multi-Mode")
-else:
-    IS_EMBEDDED = True
-    print("Running on embedded device")
-    cv2.namedWindow("Phinet Multi-Mode", cv2.WINDOW_NORMAL)
-    cv2.setWindowProperty("Phinet Multi-Mode", cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
 
 cv2.setMouseCallback("Phinet Multi-Mode", mouse_click_event)
 
