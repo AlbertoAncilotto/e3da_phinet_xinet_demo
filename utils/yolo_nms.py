@@ -142,5 +142,4 @@ def plot_boxes(results, img):
                 x1, y1, x2, y2 = box
                 x1, y1, x2, y2 = int(x1), int(y1), int(x2), int(y2)
                 cv2.rectangle(img, (x1, y1), (x2, y2), (0, 255, 0), 2)
-                cv2.putText(img, str(class_names[target_classes.index(cls)]), (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (36, 255, 12), 2)
-                cv2.putText(img, str(round(conf, 2)), (x1, y1 - 30), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (36, 255, 12), 2)
+                cv2.putText(img, str(class_names[target_classes.index(cls)])+' '+str(round(conf, 2)), (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (36, 255, 12), 2)

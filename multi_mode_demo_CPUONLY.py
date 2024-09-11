@@ -8,6 +8,8 @@ import time
 from utils.align_face import dealign, align_img
 from utils.prepare_data import LandmarkModel
 from utils import yolo_nms
+from utils import camera
+
 
 object_model = onnxruntime.InferenceSession("phinet.onnx", providers=['CPUExecutionProvider'])  # Object detection model
 pose_model = onnxruntime.InferenceSession("xinet-pose.onnx", providers=['CPUExecutionProvider'])  # Pose detection model
@@ -28,9 +30,9 @@ for model in tqdm(os.listdir(base_dir)):
 
 backgrounds = {
     0: ["slides_bg/slide_0.png", (0, 0, 1.0)],  # Only background, no frame
-    1: ["slides_bg/slide_1.png", (400, 450, 2.4)],  
-    2: ["slides_bg/slide_1.png", (400, 450, 2.4)],  
-    3: ["slides_bg/slide_2.png", (1300, 450, 1.2)], 
+    1: ["slides_bg/slide_1.png", (430, 450, 1.7)],  
+    2: ["slides_bg/slide_1.png", (430, 450, 1.7)],  
+    3: ["slides_bg/slide_2.png", (1300, 450, 1.8)], 
 }
 
 def switch_mode(delta):
@@ -49,7 +51,7 @@ curr_model = 0 #for face swapping
 ort_session = inf_sessions[curr_model]['session']
 start_time = time.time()
 
-cap = cv2.VideoCapture(0)
+cap = camera.Camera(480, 320)
 if platform.machine() in ['AMD64', 'x86_64', 'i386', 'x86', 'i686']:
     IS_EMBEDDED = False
     cv2.namedWindow("Phinet Multi-Mode")
@@ -62,7 +64,7 @@ else:
 cv2.setMouseCallback("Phinet Multi-Mode", mouse_click_event)
 
 while True:
-    ret, frame = cap.read()
+    frame = cap.get_frame()
 
     # Get background image and placement settings for the current mode
     bg_path, (center_x, center_y, scale) = backgrounds[mode]
@@ -78,14 +80,15 @@ while True:
         ort_inputs = {object_model.get_inputs()[0].name: input_image}
         results = object_model.run(None, ort_inputs)[0]
         yolo_nms.plot_boxes(results, img)
-        annotated_frame = img
+        annotated_frame = cv2.resize(img, (480, 320))
 
     elif mode == 2:  # Pose Detection
         img = cv2.resize(frame, (320, 256))
         input_image = np.expand_dims(img.astype(np.float32).transpose(2, 0, 1) / 255.0, axis=0)
         ort_inputs = {pose_model.get_inputs()[0].name: input_image}
         results = pose_model.run(None, ort_inputs)[0]
-        annotated_frame = frame = yolo_nms.post_process_multi(img, results[0], score_threshold=.5)
+        annotated_frame = yolo_nms.post_process_multi(img, results[0], score_threshold=.5)
+        annotated_frame = cv2.resize(annotated_frame, (480, 320))
         
     elif mode == 3:  # Face Swapping
         landmark = landmarkModel.get(frame)
@@ -133,5 +136,4 @@ while True:
     elif key == ord('a'):
         switch_mode(-1)
 
-cap.release()
 cv2.destroyAllWindows()
