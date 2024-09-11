@@ -140,7 +140,7 @@ while True:
             background_img[y1:y2, x1:x2] = resized_frame
             annotated_frame = background_img
 
-    if IS_EMBEDDED:
+    if IS_EMBEDDED and mode != 0:
         #add text 'energy: {frame_time*5}mJ' o bottom left corner
         cv2.putText(annotated_frame, f'Energy: {(time.time()-frame_start)*4:.2f} J', (10, 310), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2, cv2.LINE_AA)
     cv2.imshow("Phinet Multi-Mode", annotated_frame)
