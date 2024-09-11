@@ -83,6 +83,7 @@ while True:
     # Automatically switch modes after the specified time
     if IS_EMBEDDED and time.time() - mode_start_time > mode_durations[mode]:
         switch_mode(1)
+        mode_start_time = time.time()
 
     if mode == 0:  # Only Background
         annotated_frame = background_img
