@@ -10,23 +10,6 @@ from utils import yolo_nms
 from utils import camera
 
 
-object_model = onnxruntime.InferenceSession("phinet.onnx", providers=['CPUExecutionProvider'])  # Object detection model
-pose_model = onnxruntime.InferenceSession("xinet-pose.onnx", providers=['CPUExecutionProvider'])  # Pose detection model
-
-# Load Face Swapping components
-base_dir = 'demo_images'
-MODEL_TIME = 5
-landmarkModel = LandmarkModel(name='landmarks')
-landmarkModel.prepare(ctx_id=0, det_thresh=0.1, det_size=(128, 128))
-inf_sessions = []
-
-for model in os.listdir(base_dir):
-    if not model.endswith('onnx'):
-        continue
-    ort_session = onnxruntime.InferenceSession(os.path.join(base_dir, model), providers=['CPUExecutionProvider'])
-    ref_img = cv2.imread(os.path.join(base_dir, model.replace('.onnx', '')))
-    inf_sessions.append({'session': ort_session, 'img': ref_img})
-
 backgrounds = {
     0: ["slides_bg/slide_0.png", (0, 0, 1.0)],  # Only background, no frame
     1: ["slides_bg/slide_1.png", (430, 450, 1.7)],  
@@ -41,21 +24,43 @@ for mode, (bg_path, (center_x, center_y, scale)) in backgrounds.items():
     resized_bg = cv2.resize(background_img, (1800, 900))
     background_images.append((resized_bg, (center_x, center_y, scale)))
 
-def switch_mode(delta):
-    global mode
-    mode = (mode + delta) % 4
+cv2.imshow("Phinet Multi-Mode", background_images[0][0])
+cv2.waitKey(1)
 
-def mouse_click_event(event,x,y,flags,param):
+# Load models
+object_model = onnxruntime.InferenceSession("phinet.onnx", providers=['CPUExecutionProvider'])  # Object detection model
+pose_model = onnxruntime.InferenceSession("xinet-pose.onnx", providers=['CPUExecutionProvider'])  # Pose detection model
+
+# Load Face Swapping components
+base_dir = 'demo_images'
+landmarkModel = LandmarkModel(name='landmarks')
+landmarkModel.prepare(ctx_id=0, det_thresh=0.1, det_size=(128, 128))
+inf_sessions = []
+
+for model in os.listdir(base_dir):
+    if not model.endswith('onnx'):
+        continue
+    ort_session = onnxruntime.InferenceSession(os.path.join(base_dir, model), providers=['CPUExecutionProvider'])
+    ref_img = cv2.imread(os.path.join(base_dir, model.replace('.onnx', '')))
+    inf_sessions.append({'session': ort_session, 'img': ref_img})
+
+def switch_mode(delta):
+    global mode, mode_start_time
+    mode = (mode + delta) % 4
+    mode_start_time = time.time()
+
+def mouse_click_event(event, x, y, flags, param):
     if event == cv2.EVENT_LBUTTONDOWN:
         switch_mode(1)
     if event == cv2.EVENT_RBUTTONDOWN:
         switch_mode(-1)
 
-
-mode = 0  # 0: Only Background, 1: Object Detection, 2: Pose Detection, 3: Face Swapping
-curr_model = 0 #for face swapping
+# Mode settings
+mode_durations = {0: 2, 1: 5, 2: 5, 3: 15}
+mode = 0  # Start with mode 0
+curr_model = 0 # for face swapping
 ort_session = inf_sessions[curr_model]['session']
-start_time = time.time()
+mode_start_time = time.time()
 
 cap = camera.Camera(480, 320)
 if platform.machine() in ['AMD64', 'x86_64', 'i386', 'x86', 'i686']:
@@ -71,7 +76,12 @@ cv2.setMouseCallback("Phinet Multi-Mode", mouse_click_event)
 
 while True:
     frame = cap.get_frame()
+    frame_start = time.time()
     background_img, (center_x, center_y, scale) = background_images[mode]
+
+    # Automatically switch modes after the specified time
+    if IS_EMBEDDED and time.time() - mode_start_time > mode_durations[mode]:
+        switch_mode(1)
 
     if mode == 0:  # Only Background
         annotated_frame = background_img
@@ -95,7 +105,6 @@ while True:
     elif mode == 3:  # Face Swapping
         landmark = landmarkModel.get(frame)
         if landmark is not None:
-
             att_img, back_matrix = align_img(frame, landmark)
             att_img = np.transpose(cv2.cvtColor(att_img, cv2.COLOR_BGR2RGB), (2, 0, 1)).astype(np.float32) / 255.0
             ort_inputs = {ort_session.get_inputs()[0].name: att_img[None, ...]}
@@ -112,11 +121,11 @@ while True:
         h, w = resized_img.shape[:2]
         annotated_frame[:h, -w:, :] = resized_img
 
-        if time.time() - start_time > MODEL_TIME:
+        if time.time() - mode_start_time > mode_durations[mode]:
             curr_model += 1
             curr_model %= len(inf_sessions)
             ort_session = inf_sessions[curr_model]['session']
-            start_time = time.time()
+            mode_start_time = time.time()
 
     # Paste the current frame onto the background
     if mode != 0:
@@ -128,6 +137,9 @@ while True:
             background_img[y1:y2, x1:x2] = resized_frame
             annotated_frame = background_img
 
+    if IS_EMBEDDED:
+        #add text 'energy: {frame_time*5}mJ' o bottom left corner
+        cv2.putText(annotated_frame, f'Energy: {time.time()-frame_start:.2f}s', (10, 310), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2, cv2.LINE_AA)
     cv2.imshow("Phinet Multi-Mode", annotated_frame)
     key = cv2.waitKey(1) & 0xFF
 
