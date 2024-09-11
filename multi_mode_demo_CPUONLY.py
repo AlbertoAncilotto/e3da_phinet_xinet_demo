@@ -65,11 +65,12 @@ def mouse_click_event(event, x, y, flags, param):
         switch_mode(-1)
 
 # Mode settings
-mode_durations = {0: 2, 1: 5, 2: 5, 3: 15}
+mode_durations = {0: 2, 1: 5, 2: 5, 3: 10}
 mode = 0  # Start with mode 0
 curr_model = 0 # for face swapping
 ort_session = inf_sessions[curr_model]['session']
 mode_start_time = time.time()
+fswap_start_time = time.time()
 
 cap = camera.Camera(480, 320)
 
@@ -123,11 +124,11 @@ while True:
         h, w = resized_img.shape[:2]
         annotated_frame[:h, -w:, :] = resized_img
 
-        if time.time() - mode_start_time > mode_durations[mode]:
+        if time.time() - fswap_start_time > 3:
             curr_model += 1
             curr_model %= len(inf_sessions)
             ort_session = inf_sessions[curr_model]['session']
-            mode_start_time = time.time()
+            fswap_start_time = time.time()
 
     # Paste the current frame onto the background
     if mode != 0:
