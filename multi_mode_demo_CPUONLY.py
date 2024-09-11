@@ -1,7 +1,6 @@
 import cv2
 import os, sys, platform
 import numpy as np
-from tqdm import tqdm
 import onnxruntime
 onnxruntime.set_default_logger_severity(3)
 import time
@@ -21,7 +20,7 @@ landmarkModel = LandmarkModel(name='landmarks')
 landmarkModel.prepare(ctx_id=0, det_thresh=0.1, det_size=(128, 128))
 inf_sessions = []
 
-for model in tqdm(os.listdir(base_dir)):
+for model in os.listdir(base_dir):
     if not model.endswith('onnx'):
         continue
     ort_session = onnxruntime.InferenceSession(os.path.join(base_dir, model), providers=['CPUExecutionProvider'])
@@ -34,6 +33,13 @@ backgrounds = {
     2: ["slides_bg/slide_1.png", (430, 450, 1.7)],  
     3: ["slides_bg/slide_2.png", (1300, 450, 1.8)], 
 }
+
+# Preload and resize all backgrounds before the loop
+background_images = []
+for mode, (bg_path, (center_x, center_y, scale)) in backgrounds.items():
+    background_img = cv2.imread(bg_path)
+    resized_bg = cv2.resize(background_img, (1800, 900))
+    background_images.append((resized_bg, (center_x, center_y, scale)))
 
 def switch_mode(delta):
     global mode
@@ -65,11 +71,7 @@ cv2.setMouseCallback("Phinet Multi-Mode", mouse_click_event)
 
 while True:
     frame = cap.get_frame()
-
-    # Get background image and placement settings for the current mode
-    bg_path, (center_x, center_y, scale) = backgrounds[mode]
-    background_img = cv2.imread(bg_path)
-    background_img = cv2.resize(background_img, (1800, 900))
+    background_img, (center_x, center_y, scale) = background_images[mode]
 
     if mode == 0:  # Only Background
         annotated_frame = background_img
@@ -136,4 +138,5 @@ while True:
     elif key == ord('a'):
         switch_mode(-1)
 
+cap.release()
 cv2.destroyAllWindows()
