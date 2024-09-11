@@ -140,7 +140,7 @@ while True:
 
     if IS_EMBEDDED:
         #add text 'energy: {frame_time*5}mJ' o bottom left corner
-        cv2.putText(annotated_frame, f'Energy: {time.time()-frame_start:.2f}s', (10, 310), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2, cv2.LINE_AA)
+        cv2.putText(annotated_frame, f'Energy: {(time.time()-frame_start)*4:.2f} J', (10, 310), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2, cv2.LINE_AA)
     cv2.imshow("Phinet Multi-Mode", annotated_frame)
     key = cv2.waitKey(1) & 0xFF
 
